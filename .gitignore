@@ -1,0 +1,38 @@
+# Build directories
+build/
+builddir/
+*.o
+*.a
+*.so
+*.so.*
+
+# Meson specific
+meson-logs/
+meson-private/
+compile_commands.json
+
+# Executables
+esphome-ble-proxy
+*.elf
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Debug files
+*.dSYM/
+*.su
+*.core
+vgcore.*
+
+# Cross-compilation artifacts
+sysroot/
+toolchain/
+
+# Local configuration
+local.txt
+*.local
