@@ -206,8 +206,10 @@ WORKDIR /workspace
 
 # Copy project files
 COPY meson.build .
+COPY meson_options.txt .
 COPY cross/ cross/
 COPY src/ src/
+COPY plugins/ plugins/
 
 # Configure and build
 RUN --mount=type=bind,from=sdk-mount,source=/,target=/sdk,readonly \
