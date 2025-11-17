@@ -6,7 +6,7 @@ pkgconfig = 'pkg-config'
 
 [built-in options]
 c_args = ['-EL', '-march=mips32r2', '-I/sysroot/usr/include']
-c_link_args = ['-EL', '-L/sysroot/usr/lib', '-Wl,-rpath-link,/sysroot/usr/lib', '-static']
+c_link_args = ['-EL', '-L/sysroot/usr/lib', '-Wl,-rpath-link,/sysroot/usr/lib']
 
 [properties]
 sys_root = '/sysroot'
