@@ -124,3 +124,113 @@ jobs:
           name: esphome-linux-mips
           path: ./esphome-linux-mips
           if-no-files-found: error
+
+  release:
+    name: Create GitHub Release (main only)
+    needs: [build-native, build-mips]
+    runs-on: ubuntu-latest
+    # Only create releases on main branch pushes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from meson.build
+        id: get_version
+        run: |
+          VERSION=$(grep "version:" meson.build | head -1 | sed "s/.*version: '\(.*\)'.*/\1/")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Extract changelog for current version
+        id: changelog
+        run: |
+          # Extract the section for the current version from CHANGELOG.md
+          VERSION="${{ steps.get_version.outputs.version }}"
+
+          # Use awk to extract content between version headers
+          CHANGELOG=$(awk -v version="$VERSION" '
+            /^## \['"$VERSION"'\]/ { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md)
+
+          # Save to file for multiline content
+          echo "$CHANGELOG" > /tmp/changelog.txt
+
+          # Also set as output using heredoc for GitHub Actions
+          {
+            echo 'notes<<EOF'
+            cat /tmp/changelog.txt
+            echo EOF
+          } >> $GITHUB_OUTPUT
+
+          echo "Extracted changelog for version $VERSION"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List artifacts
+        run: |
+          ls -lR artifacts/
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          cp artifacts/esphome-linux-x86_64/esphome-linux release/esphome-linux-x86_64
+          cp artifacts/esphome-linux-arm64/esphome-linux release/esphome-linux-arm64
+          cp artifacts/esphome-linux-mips/esphome-linux-mips release/esphome-linux-mips
+          chmod +x release/*
+          ls -lh release/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: Release v${{ steps.get_version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          files: |
+            release/esphome-linux-x86_64
+            release/esphome-linux-arm64
+            release/esphome-linux-mips
+          body: |
+            # ESPHome Linux v${{ steps.get_version.outputs.version }}
+
+            Multi-architecture binaries for ESPHome Native API proxy with Bluetooth support.
+
+            ## Download
+
+            Download the binary for your architecture:
+
+            | Architecture | Binary | Platform |
+            |--------------|--------|----------|
+            | x86_64 | [esphome-linux-x86_64](https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/esphome-linux-x86_64) | Linux AMD64 (Intel/AMD 64-bit) |
+            | ARM64 | [esphome-linux-arm64](https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/esphome-linux-arm64) | Linux ARM64 (aarch64) |
+            | MIPS | [esphome-linux-mips](https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/esphome-linux-mips) | Ingenic T31 (MIPS32r2 LE) |
+
+            After downloading, make the binary executable:
+            ```bash
+            chmod +x esphome-linux-<arch>
+            ./esphome-linux-<arch>
+            ```
+
+            ---
+
+            ## What's Changed
+
+            ${{ steps.changelog.outputs.notes }}
+
+            ---
+
+            ## Build Information
+            - **Commit**: [`${{ github.sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+            - **Build Date**: ${{ github.event.head_commit.timestamp }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
