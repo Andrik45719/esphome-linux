@@ -645,19 +645,23 @@ void esphome_api_stop(esphome_api_server_t *server) {
     /* Wait for listen thread */
     pthread_join(server->listen_thread, NULL);
 
-    /* Wait for all client threads to finish */
+    /* Close all client sockets FIRST to unblock recv() in client threads */
+    pthread_mutex_lock(&server->clients_mutex);
+    for (int i = 0; i < ESPHOME_MAX_CLIENTS; i++) {
+        if (server->clients[i].fd >= 0) {
+            shutdown(server->clients[i].fd, SHUT_RDWR);
+            close(server->clients[i].fd);
+            server->clients[i].fd = -1;
+        }
+    }
+    pthread_mutex_unlock(&server->clients_mutex);
+
+    /* Now wait for all client threads to finish (they should exit quickly now) */
     for (int i = 0; i < ESPHOME_MAX_CLIENTS; i++) {
         if (server->clients[i].thread_running) {
             pthread_join(server->clients[i].thread, NULL);
         }
     }
-
-    /* Close all clients */
-    pthread_mutex_lock(&server->clients_mutex);
-    for (int i = 0; i < ESPHOME_MAX_CLIENTS; i++) {
-        client_close(&server->clients[i]);
-    }
-    pthread_mutex_unlock(&server->clients_mutex);
 }
 
 void esphome_api_free(esphome_api_server_t *server) {
