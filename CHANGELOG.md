@@ -165,4 +165,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - N/A
 
-[0.0.5]: https://github.com/yinzara/esphome-linux/releases/tag/v0.0.6
+[0.0.6]: https://github.com/yinzara/esphome-linux/releases/tag/v0.0.6
+
+## [0.0.7] - 2025-01-22
+
+### Added
+- Dockerhub release of images
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
+### Security
+- N/A
+
+[0.0.7]: https://github.com/yinzara/esphome-linux/releases/tag/v0.0.7

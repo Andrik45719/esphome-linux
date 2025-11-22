@@ -85,7 +85,7 @@ FROM ubuntu:22.04 AS runtime
 # Copy built libraries from builder
 COPY --from=builder /workspace/nimble/out/ /usr/local/
 COPY --from=builder /workspace/bluez/out/ /usr/local/
-COPY --from=builder /workspace/libble/out/ /usr/local/
+COPY --from=builder /workspace/libble/out/ /
 
 # Copy built application
 COPY --from=builder /workspace/build/esphome-linux /usr/local/bin/
