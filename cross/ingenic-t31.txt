@@ -6,14 +6,14 @@ strip = 'mips-linux-gnu-strip'
 pkgconfig = 'pkg-config'
 
 [built-in options]
-c_args = ['-EL', '-march=mips32r2', '-I/sysroot/usr/include']
-c_link_args = ['-EL', '-L/sysroot/usr/lib', '-Wl,-rpath-link,/sysroot/usr/lib']
-cpp_args = ['-EL', '-march=mips32r2', '-I/sysroot/usr/include']
-cpp_link_args = ['-EL', '-L/sysroot/usr/lib', '-Wl,-rpath-link,/sysroot/usr/lib']
+c_args = ['-EL', '-march=mips32r2', '-I/sysroot/usr/include', '-I/deps/nimble/include', '-I/deps/bluez/include', '-I/deps/libble/usr/include']
+c_link_args = ['-EL', '-L/sysroot/usr/lib', '-L/deps/nimble/lib', '-L/deps/bluez/lib', '-L/deps/libble/usr/lib', '-Wl,-rpath-link,/sysroot/usr/lib', '-Wl,-rpath-link,/deps/nimble/lib', '-Wl,-rpath-link,/deps/bluez/lib', '-Wl,-rpath-link,/deps/libble/usr/lib']
+cpp_args = ['-EL', '-march=mips32r2', '-I/sysroot/usr/include', '-I/deps/nimble/include', '-I/deps/bluez/include', '-I/deps/libble/usr/include']
+cpp_link_args = ['-EL', '-L/sysroot/usr/lib', '-L/deps/nimble/lib', '-L/deps/bluez/lib', '-L/deps/libble/usr/lib', '-Wl,-rpath-link,/sysroot/usr/lib', '-Wl,-rpath-link,/deps/nimble/lib', '-Wl,-rpath-link,/deps/bluez/lib', '-Wl,-rpath-link,/deps/libble/usr/lib']
 
 [properties]
 sys_root = '/sysroot'
-pkg_config_libdir = '/sysroot/usr/lib/pkgconfig'
+pkg_config_libdir = '/deps/nimble/lib/pkgconfig:/deps/bluez/lib/pkgconfig:/deps/libble/usr/lib/pkgconfig:/sysroot/usr/lib/pkgconfig'
 
 [host_machine]
 system = 'linux'

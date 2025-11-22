@@ -38,6 +38,19 @@ sysroot-*/
 toolchain/
 build-deps/
 
+# BlueZ build output
+bluez/out/
+bluez/bluez-*/
+bluez/*.tar.gz
+
+# Nimble build output
+nimble/out/
+nimble/atbm-wifi/
+
+# libble build output
+libble/out/
+libble/libblepp/
+
 # Local configuration
 local.txt
 *.local

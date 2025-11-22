@@ -1,8 +1,8 @@
 /**
  * @file ble_scanner.h
- * @brief BLE Scanner using BlueZ D-Bus Interface
+ * @brief BLE Scanner using libblepp
  *
- * Scans for BLE advertisements via BlueZ and forwards them
+ * Scans for BLE advertisements via libblepp and forwards them
  * to the ESPHome API server for Home Assistant integration.
  */
 
@@ -12,6 +12,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define BLE_MAC_LEN 6
 #define BLE_ADV_DATA_MAX 62  /* BLE spec: 31 adv + 31 scan response */
@@ -89,5 +93,9 @@ bool ble_scanner_is_running(ble_scanner_t *scanner);
  * @param scanner Scanner instance
  */
 void ble_scanner_free(ble_scanner_t *scanner);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLE_SCANNER_H */

@@ -1,28 +1,29 @@
 # Bluetooth Proxy Plugin
 
-Core plugin that provides Bluetooth LE scanning functionality via BlueZ D-Bus interface.
+Core plugin that provides Bluetooth LE scanning functionality via libblepp HCI interface.
 
 ## Overview
 
 This plugin:
-- Scans for BLE advertisements using BlueZ
+- Scans for BLE advertisements using direct HCI access via libblepp
 - Forwards advertisements to Home Assistant via ESPHome Native API
 - Handles subscription/unsubscription requests from clients
 - Caches and batches advertisements for efficient reporting
 
 ## Features
 
-- **Passive BLE scanning** - Low power consumption
+- **Passive BLE scanning** - Low power consumption using HCI
 - **Advertisement caching** - Deduplicates and batches reports
 - **Periodic reporting** - Reports devices every 10 seconds
 - **Stale device removal** - Cleans up devices not seen for 60 seconds
 - **Full advertisement data** - Manufacturer data, service UUIDs, service data
+- **Direct HCI access** - No D-Bus dependency, more efficient
 
 ## Requirements
 
-- BlueZ installed and running (`bluetoothd`)
-- D-Bus system bus access
+- libblepp library (from ~/github/libblepp)
 - Bluetooth adapter (hci0)
+- Root/CAP_NET_ADMIN capability (required for HCI socket access)
 
 ## ESPHome Messages Handled
 
@@ -43,12 +44,18 @@ This plugin:
 ## Architecture
 
 ```
-BlueZ (bluetoothd)
+Bluetooth HCI (/dev/hci0)
       │
-      ▼ D-Bus Signals
-BLE Scanner (ble_scanner.c)
+      ▼ HCI Socket
+BLEClientTransport (BlueZ or Nimble)
       │
-      ▼ Callbacks
+      ▼ Transport API
+libblepp BLEScanner
+      │
+      ▼ C++ API
+BLE Scanner (ble_scanner.cpp)
+      │
+      ▼ C Callbacks
 Bluetooth Proxy Plugin
       │
       ▼ ESPHome API
@@ -58,38 +65,56 @@ Home Assistant
 ## Files
 
 - `bluetooth_proxy_plugin.c` - Plugin wrapper, handles ESPHome messages
-- `ble_scanner.c` - BlueZ D-Bus integration, BLE scanning logic
-- `ble_scanner.h` - BLE scanner API
+- `ble_scanner.cpp` - libblepp HCI integration, BLE scanning logic (C++)
+- `ble_scanner.h` - BLE scanner C API
+- `meson.build` - Build configuration for libblepp integration
 - `README.md` - This file
+
+## Building
+
+The plugin requires libblepp to be built first:
+
+```bash
+# Build libblepp
+cd ~/github/libblepp
+mkdir -p build && cd build
+cmake .. -DWITH_EXAMPLES=OFF
+make
+
+# Build esphome-linux with Bluetooth Proxy
+cd ~/github/esphome-linux
+meson setup builddir
+meson compile -C builddir
+```
 
 ## Configuration
 
 No configuration needed - automatically starts when Home Assistant subscribes.
 
-##Testing
+## Testing
 
 ```bash
-# Check if BlueZ is running
-systemctl status bluetooth
-
 # Check for Bluetooth adapter
 hciconfig
 
-# Monitor D-Bus signals
-dbus-monitor --system "interface='org.freedesktop.DBus.Properties'"
+# Verify HCI access (requires root)
+sudo hcitool lescan
+
+# Run esphome-linux (requires root for HCI)
+sudo ./builddir/esphome-linux
 ```
 
 ## Troubleshooting
 
 **BLE scanner fails to initialize:**
-- Check BlueZ is running: `systemctl status bluetooth`
 - Check adapter exists: `hciconfig`
-- Check D-Bus permissions
+- Ensure running as root or with CAP_NET_ADMIN: `sudo ./esphome-linux`
+- Check libblepp is built in ~/github/libblepp/build
 
 **No advertisements received:**
 - Ensure BLE devices are advertising nearby
-- Check BlueZ discovery: `bluetoothctl scan on`
-- Check adapter is powered: `bluetoothctl power on`
+- Check adapter is up: `sudo hciconfig hci0 up`
+- Test with: `sudo hcitool lescan`
 
 ## Future Enhancements
 

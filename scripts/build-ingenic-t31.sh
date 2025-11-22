@@ -10,19 +10,7 @@ SDK_DIR="${SDK_DIR:-$(cd "${SCRIPT_DIR}/../../Ingenic-SDK-T31-1.1.1-20200508" &&
 # Toolchain configuration
 TOOLCHAIN_NAME="${TOOLCHAIN_NAME:-mips-gcc540-glibc222-64bit-r3.3.0}"
 TOOLCHAIN_BIN="${SDK_DIR}/toolchain/${TOOLCHAIN_NAME}/bin"
-
-# Target architecture
-TARGET_ARCH="${TARGET_ARCH:-mips32r2}"
-TARGET_ENDIAN="${TARGET_ENDIAN:-EL}"
-
-# Dependency versions (build args for Dockerfile)
-GLIB_VERSION="${GLIB_VERSION:-2.56.4}"
-DBUS_VERSION="${DBUS_VERSION:-1.12.20}"
-EXPAT_VERSION="${EXPAT_VERSION:-2.5.0}"
-LIBFFI_VERSION="${LIBFFI_VERSION:-3.3}"
-PCRE_VERSION="${PCRE_VERSION:-8.45}"
-GETTEXT_VERSION="${GETTEXT_VERSION:-0.21}"
-ZLIB_VERSION="${ZLIB_VERSION:-1.2.13}"
+TOOLCHAIN_PREFIX="${TOOLCHAIN_PREFIX:-mips-linux-gnu}"
 
 # Docker image tag
 DOCKER_IMAGE="esphome-linux-cross"
@@ -54,20 +42,19 @@ rm -rf "${SCRIPT_DIR}/esphome-linux-mips"
 echo -e "${GREEN}Building Docker image with multi-stage caching...${NC}"
 DOCKER_BUILDKIT=1 docker build \
     --platform linux/amd64 \
+    --progress plain \
     -f cross.Dockerfile \
     -t ${DOCKER_IMAGE}:${DOCKER_TAG} \
     --build-context sdk-mount="${SDK_DIR}" \
     --build-arg TOOLCHAIN_BIN="/sdk/toolchain/${TOOLCHAIN_NAME}/bin" \
-    --build-arg TARGET_ARCH=${TARGET_ARCH} \
-    --build-arg TARGET_ENDIAN=${TARGET_ENDIAN} \
-    --build-arg GLIB_VERSION=${GLIB_VERSION} \
-    --build-arg DBUS_VERSION=${DBUS_VERSION} \
-    --build-arg EXPAT_VERSION=${EXPAT_VERSION} \
-    --build-arg LIBFFI_VERSION=${LIBFFI_VERSION} \
-    --build-arg PCRE_VERSION=${PCRE_VERSION} \
-    --build-arg GETTEXT_VERSION=${GETTEXT_VERSION} \
-    --build-arg ZLIB_VERSION=${ZLIB_VERSION} \
-    --build-arg SDK_DIR="${SDK_DIR}" \
+    --build-arg CROSS_COMPILE="${TOOLCHAIN_PREFIX}-" \
+    --build-arg CC="${TOOLCHAIN_PREFIX}-gcc" \
+    --build-arg CXX="${TOOLCHAIN_PREFIX}-g++" \
+    --build-arg AR="${TOOLCHAIN_PREFIX}-ar" \
+    --build-arg AS="${TOOLCHAIN_PREFIX}-as" \
+    --build-arg LD="${TOOLCHAIN_PREFIX}-ld" \
+    --build-arg RANLIB="${TOOLCHAIN_PREFIX}-ranlib" \
+    --build-arg STRIP="${TOOLCHAIN_PREFIX}-strip" \
     --target builder \
     .
 
@@ -77,10 +64,36 @@ container_id=$(docker create ${DOCKER_IMAGE}:${DOCKER_TAG})
 docker cp ${container_id}:/workspace/build-mips/esphome-linux "${SCRIPT_DIR}/../esphome-linux-mips"
 docker rm ${container_id}
 
+# Extract dependencies archive from the deps stage
+echo -e "${GREEN}Extracting dependencies archive...${NC}"
+rm -rf "${SCRIPT_DIR}/../output-mips-deps"
+DOCKER_BUILDKIT=1 docker build \
+    --platform linux/amd64 \
+    --progress plain \
+    -f cross.Dockerfile \
+    --build-context sdk-mount="${SDK_DIR}" \
+    --build-arg TOOLCHAIN_BIN="/sdk/toolchain/${TOOLCHAIN_NAME}/bin" \
+    --build-arg CROSS_COMPILE="${TOOLCHAIN_PREFIX}-" \
+    --build-arg CC="${TOOLCHAIN_PREFIX}-gcc" \
+    --build-arg CXX="${TOOLCHAIN_PREFIX}-g++" \
+    --build-arg AR="${TOOLCHAIN_PREFIX}-ar" \
+    --build-arg AS="${TOOLCHAIN_PREFIX}-as" \
+    --build-arg LD="${TOOLCHAIN_PREFIX}-ld" \
+    --build-arg RANLIB="${TOOLCHAIN_PREFIX}-ranlib" \
+    --build-arg STRIP="${TOOLCHAIN_PREFIX}-strip" \
+    --target deps \
+    --output type=local,dest="${SCRIPT_DIR}/../output-mips-deps" \
+    . > /dev/null 2>&1
+
+if [ -f "${SCRIPT_DIR}/../output-mips-deps/deps.tar.gz" ]; then
+    mv "${SCRIPT_DIR}/../output-mips-deps/deps.tar.gz" "${SCRIPT_DIR}/../deps-mips.tar.gz"
+    rm -rf "${SCRIPT_DIR}/../output-mips-deps"
+fi
+
 # Check if binary exists
 if [ -f "${SCRIPT_DIR}/../esphome-linux-mips" ]; then
     echo -e "${GREEN}✓ Cross-compilation successful!${NC}"
-    echo -e "Binary location: ${SCRIPT_DIR}/esphome-linux-mips"
+    echo -e "Binary location: ${SCRIPT_DIR}/../esphome-linux-mips"
     file "${SCRIPT_DIR}/../esphome-linux-mips"
 
     # Show dependencies
@@ -93,4 +106,11 @@ if [ -f "${SCRIPT_DIR}/../esphome-linux-mips" ]; then
 else
     echo -e "${RED}✗ Binary not found. Check the build output above.${NC}"
     exit 1
+fi
+
+# Check if dependencies archive exists
+if [ -f "${SCRIPT_DIR}/../deps-mips.tar.gz" ]; then
+    echo -e "${GREEN}✓ Dependencies archive: ${SCRIPT_DIR}/../deps-mips.tar.gz${NC}"
+else
+    echo -e "${YELLOW}⚠ Dependencies archive not found${NC}"
 fi

@@ -37,6 +37,17 @@ jobs:
           cache-from: type=gha,scope=amd64
           cache-to: type=gha,mode=max,scope=amd64
 
+      - name: Build x86_64 dependencies
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          target: deps
+          outputs: type=local,dest=./output-amd64-deps
+          cache-from: type=gha,scope=amd64
+          cache-to: type=gha,mode=max,scope=amd64
+
       - name: Build ARM64
         uses: docker/build-push-action@v5
         with:
@@ -47,12 +58,39 @@ jobs:
           cache-from: type=gha,scope=arm64
           cache-to: type=gha,mode=max,scope=arm64
 
+      - name: Build ARM64 dependencies
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/arm64
+          target: deps
+          outputs: type=local,dest=./output-arm64-deps
+          cache-from: type=gha,scope=arm64
+          cache-to: type=gha,mode=max,scope=arm64
+
       - name: Verify binaries
         run: |
           ls -lh ./output-amd64/usr/local/bin
           ls -lh ./output-arm64/usr/local/bin
           file ./output-amd64/usr/local/bin/esphome-linux || true
           file ./output-arm64/usr/local/bin/esphome-linux || true
+
+      - name: Prepare dependency archives
+        run: |
+          if [ -f "./output-amd64-deps/deps.tar.gz" ]; then
+            mv ./output-amd64-deps/deps.tar.gz ./deps-x86_64.tar.gz
+            rm -rf ./output-amd64-deps
+            echo "x86_64 dependencies archive created"
+          fi
+
+          if [ -f "./output-arm64-deps/deps.tar.gz" ]; then
+            mv ./output-arm64-deps/deps.tar.gz ./deps-arm64.tar.gz
+            rm -rf ./output-arm64-deps
+            echo "ARM64 dependencies archive created"
+          fi
+
+          ls -lh deps-*.tar.gz || echo "No dependency archives found"
 
       - name: Upload x86_64 artifact
         uses: actions/upload-artifact@v4
@@ -61,11 +99,25 @@ jobs:
           path: ./output-amd64/usr/local/bin/esphome-linux
           if-no-files-found: error
 
+      - name: Upload x86_64 dependencies
+        uses: actions/upload-artifact@v4
+        with:
+          name: deps-x86_64
+          path: ./deps-x86_64.tar.gz
+          if-no-files-found: error
+
       - name: Upload ARM64 artifact
         uses: actions/upload-artifact@v4
         with:
           name: esphome-linux-arm64
           path: ./output-arm64/usr/local/bin/esphome-linux
+          if-no-files-found: error
+
+      - name: Upload ARM64 dependencies
+        uses: actions/upload-artifact@v4
+        with:
+          name: deps-arm64
+          path: ./deps-arm64.tar.gz
           if-no-files-found: error
 
   build-mips:
@@ -118,11 +170,22 @@ jobs:
           file ./esphome-linux-mips
           # Should show: ELF 32-bit LSB executable, MIPS
 
+      - name: Verify MIPS dependencies
+        run: |
+          ls -lh ./deps-mips.tar.gz || echo "MIPS dependencies archive not found"
+
       - name: Upload MIPS artifact
         uses: actions/upload-artifact@v4
         with:
           name: esphome-linux-mips
           path: ./esphome-linux-mips
+          if-no-files-found: error
+
+      - name: Upload MIPS dependencies
+        uses: actions/upload-artifact@v4
+        with:
+          name: deps-mips
+          path: ./deps-mips.tar.gz
           if-no-files-found: error
 
   release:
@@ -185,7 +248,10 @@ jobs:
           cp artifacts/esphome-linux-x86_64/esphome-linux release/esphome-linux-x86_64
           cp artifacts/esphome-linux-arm64/esphome-linux release/esphome-linux-arm64
           cp artifacts/esphome-linux-mips/esphome-linux-mips release/esphome-linux-mips
-          chmod +x release/*
+          cp artifacts/deps-x86_64/deps-x86_64.tar.gz release/deps-x86_64.tar.gz
+          cp artifacts/deps-arm64/deps-arm64.tar.gz release/deps-arm64.tar.gz
+          cp artifacts/deps-mips/deps-mips.tar.gz release/deps-mips.tar.gz
+          chmod +x release/esphome-linux-*
           ls -lh release/
 
       - name: Create Release
@@ -200,6 +266,9 @@ jobs:
             release/esphome-linux-x86_64
             release/esphome-linux-arm64
             release/esphome-linux-mips
+            release/deps-x86_64.tar.gz
+            release/deps-arm64.tar.gz
+            release/deps-mips.tar.gz
           body: |
             # ESPHome Linux v${{ steps.get_version.outputs.version }}
 
@@ -209,17 +278,31 @@ jobs:
 
             Download the binary for your architecture:
 
-            | Architecture | Binary | Platform |
-            |--------------|--------|----------|
-            | x86_64 | [esphome-linux-x86_64](https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/esphome-linux-x86_64) | Linux AMD64 (Intel/AMD 64-bit) |
-            | ARM64 | [esphome-linux-arm64](https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/esphome-linux-arm64) | Linux ARM64 (aarch64) |
-            | MIPS | [esphome-linux-mips](https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/esphome-linux-mips) | Ingenic T31 (MIPS32r2 LE) |
+            | Architecture | Binary | Dependencies | Platform |
+            |--------------|--------|--------------|----------|
+            | x86_64 | [esphome-linux-x86_64](https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/esphome-linux-x86_64) | [deps-x86_64.tar.gz](https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/deps-x86_64.tar.gz) | Linux AMD64 (Intel/AMD 64-bit) |
+            | ARM64 | [esphome-linux-arm64](https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/esphome-linux-arm64) | [deps-arm64.tar.gz](https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/deps-arm64.tar.gz) | Linux ARM64 (aarch64) |
+            | MIPS | [esphome-linux-mips](https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/esphome-linux-mips) | [deps-mips.tar.gz](https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/deps-mips.tar.gz) | Ingenic T31 (MIPS32r2 LE) |
 
-            After downloading, make the binary executable:
+            ### Installation
+
+            1. Download the binary and dependencies for your architecture
+            2. Extract the dependencies to your system:
+            ```bash
+            # Extract to /usr/local (requires root)
+            sudo tar -xzf deps-<arch>.tar.gz -C /usr/local
+
+            # Or extract to a custom location and set LD_LIBRARY_PATH
+            tar -xzf deps-<arch>.tar.gz -C ~/esphome-deps
+            export LD_LIBRARY_PATH=~/esphome-deps/lib:$LD_LIBRARY_PATH
+            ```
+            3. Make the binary executable and run:
             ```bash
             chmod +x esphome-linux-<arch>
             ./esphome-linux-<arch>
             ```
+
+            **Dependencies include**: NimBLE (Bluetooth LE stack), BlueZ (Bluetooth library), and libblepp (BLE++ wrapper)
 
             ---
 

@@ -38,14 +38,23 @@ build_native() {
 
     if command -v docker &> /dev/null; then
         echo -e "${BLUE}Using Docker build...${NC}"
-        docker build -t esphome-linux:native -f Dockerfile .
+        docker build -t esphome-linux:native --target runtime -f Dockerfile .
+
+        # Build deps stage for dependencies archive
+        docker build -t esphome-linux-deps:native --target deps -f Dockerfile .
 
         # Extract binary
         container_id=$(docker create esphome-linux:native)
         docker cp "${container_id}:/usr/local/bin/esphome-linux" ./esphome-linux
         docker rm "${container_id}"
 
+        # Extract dependencies archive
+        deps_id=$(docker create esphome-linux-deps:native)
+        docker cp "${deps_id}:/deps.tar.gz" ./deps-native.tar.gz
+        docker rm "${deps_id}"
+
         echo -e "${GREEN}✓ Native build complete: ./esphome-linux${NC}"
+        echo -e "${GREEN}✓ Dependencies archive: ./deps-native.tar.gz${NC}"
     else
         echo -e "${YELLOW}Docker not found, using local build...${NC}"
         if [ ! -d "build" ]; then
@@ -63,7 +72,15 @@ build_x86_64() {
 
     docker buildx build --platform linux/amd64 \
         -f Dockerfile \
+        --target runtime \
         --output type=local,dest=./output-amd64 \
+        .
+
+    # Extract dependencies
+    docker buildx build --platform linux/amd64 \
+        -f Dockerfile \
+        --target deps \
+        --output type=local,dest=./output-amd64-deps \
         .
 
     if [ -f "./output-amd64/usr/local/bin/esphome-linux" ]; then
@@ -75,6 +92,12 @@ build_x86_64() {
         echo -e "${RED}✗ x86_64 build failed${NC}"
         return 1
     fi
+
+    if [ -f "./output-amd64-deps/deps.tar.gz" ]; then
+        mv ./output-amd64-deps/deps.tar.gz ./deps-x86_64.tar.gz
+        rm -rf ./output-amd64-deps
+        echo -e "${GREEN}✓ Dependencies archive: ./deps-x86_64.tar.gz${NC}"
+    fi
 }
 
 build_arm64() {
@@ -83,7 +106,15 @@ build_arm64() {
 
     docker buildx build --platform linux/arm64 \
         -f Dockerfile \
+        --target runtime \
         --output type=local,dest=./output-arm64 \
+        .
+
+    # Extract dependencies
+    docker buildx build --platform linux/arm64 \
+        -f Dockerfile \
+        --target deps \
+        --output type=local,dest=./output-arm64-deps \
         .
 
     if [ -f "./output-arm64/usr/local/bin/esphome-linux" ]; then
@@ -94,6 +125,12 @@ build_arm64() {
     else
         echo -e "${RED}✗ ARM64 build failed${NC}"
         return 1
+    fi
+
+    if [ -f "./output-arm64-deps/deps.tar.gz" ]; then
+        mv ./output-arm64-deps/deps.tar.gz ./deps-arm64.tar.gz
+        rm -rf ./output-arm64-deps
+        echo -e "${GREEN}✓ Dependencies archive: ./deps-arm64.tar.gz${NC}"
     fi
 }
 

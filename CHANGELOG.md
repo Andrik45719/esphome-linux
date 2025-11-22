@@ -144,3 +144,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - N/A
 
 [0.0.5]: https://github.com/yinzara/esphome-linux/releases/tag/v0.0.5
+
+## [0.0.6] - 2025-01-18
+
+### Added
+- N/A
+
+### Changed
+- Dbus/libz dependencies replaced with libble++ and releasing dependencies now
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
+### Security
+- N/A
+
+[0.0.5]: https://github.com/yinzara/esphome-linux/releases/tag/v0.0.6

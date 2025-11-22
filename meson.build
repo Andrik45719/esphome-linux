@@ -1,5 +1,5 @@
 project('esphome-linux', ['c', 'cpp'],
-  version: '0.0.4',
+  version: '0.0.6',
   license: 'MIT',
   default_options: [
     'warning_level=2',
@@ -13,12 +13,6 @@ project('esphome-linux', ['c', 'cpp'],
 thread_dep = dependency('threads')
 dl_dep = meson.get_compiler('c').find_library('dl', required: false)
 deps = [thread_dep]
-
-# Conditional dependencies for Bluetooth Proxy
-if get_option('enable_bluetooth_proxy')
-  dbus_dep = dependency('dbus-1', version: '>=1.6')
-  glib_dep = dependency('glib-2.0', version: '>=2.40')
-endif
 
 # Include directories
 inc = include_directories('src/include')
@@ -88,9 +82,6 @@ add_project_arguments(
 )
 
 # Build dependencies list
-if get_option('enable_bluetooth_proxy')
-  deps += [dbus_dep, glib_dep]
-endif
 if dl_dep.found()
   deps += dl_dep
 endif
@@ -111,8 +102,7 @@ summary_dict = {
 }
 if get_option('enable_bluetooth_proxy')
   summary_dict += {
-    'D-Bus': dbus_dep.version(),
-    'GLib': glib_dep.version(),
+    'BLE Backend': 'libblepp (HCI)',
   }
 endif
 summary(summary_dict, section: 'Configuration')
