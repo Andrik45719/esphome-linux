@@ -30,7 +30,7 @@ if libblepp_dep.found()
 elif not libblepp_dep.found()
   # Try to find the library manually
   # In cross-compilation (Buildroot), it will be in sysroot/usr/lib
-  # In native builds, check ~/github/libblepp
+  # In native builds, check the subdirectories of this build
 
   # For cross-compilation, meson automatically searches in sysroot
   # Just need to specify library name without explicit dirs
@@ -55,22 +55,39 @@ elif not libblepp_dep.found()
     message('Using libblepp from system/sysroot')
   else
     # Fall back to local development build
-    libblepp_base = join_paths(meson.source_root(), '..', '..', 'libblepp')
-
+    libblepp_base = join_paths(meson.source_root(), 'libble')
+    message('libble root:' + libblepp_base)
     libblepp_lib = cpp_compiler.find_library('ble++',
       dirs: [
-        join_paths(libblepp_base, 'build'),
-        join_paths(libblepp_base, 'cmake-build-debug'),
+          join_paths(libblepp_base, 'out/usr/lib/aarch64-linux-gnu'),
+          join_paths(libblepp_base, 'out/usr/lib/amd64-linux-gnu'),
+          join_paths(libblepp_base, 'out/usr/lib/mips-linux-gnu')
       ],
       required: true
     )
+    nimble_base = join_paths(meson.source_root(), 'nimble')
+    nimble_lib = cpp_compiler.find_library('nimble',
+                                             dirs: [
+                                                 join_paths(nimble_base, 'out/lib')
+                                             ],
+                                             required: true
+    )
+    bluez_base = join_paths(meson.source_root(), 'bluez')
+    bluez_lib = cpp_compiler.find_library('bluetooth',
+                                             dirs: [
+                                                 join_paths(bluez_base, 'out/lib')
+                                             ],
+                                             required: true
+    )
 
     libblepp_dep = declare_dependency(
-      include_directories: include_directories(libblepp_base),
-      dependencies: [libblepp_lib]
+      include_directories: include_directories('../../libble/out/usr/include'),
+      dependencies: [libblepp_lib, nimble_lib, bluez_lib]
     )
 
     message('Using libblepp from: ' + libblepp_base)
+    message('Using nimble from: ' + nimble_base)
+    message('Using bluez from: ' + bluez_base)
   endif
 endif
 

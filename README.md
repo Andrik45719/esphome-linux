@@ -28,18 +28,17 @@ Note: this project is not affiliated with ESPHome in any way. It is its own stan
 ## Dependencies
 
 ### Build Dependencies
-
 - **Meson** >= 0.55.0 - Build system
 - **Ninja** - Build backend
 - **pkg-config** - Dependency discovery
 - **GCC** or **Clang** - C11 compiler
+ OR
+- **Docker** - All building can be done with Docker (see scripts/build.sh)
 
 ### Runtime Dependencies
 
-- **D-Bus** >= 1.6 (`libdbus-1`)
-- **GLib** >= 2.40 (`libglib-2.0`)
+- **deps-${arch}.tar.gz** - Pre-built dependencies (see Releases) of BlueZ's libbluetooth, Nimble's libnimble, and BLE++ libblepp
 - **pthread** - POSIX threads
-- **BlueZ** >= 5.x - Bluetooth stack (`bluetoothd`) - Optional, required only for Bluetooth Proxy plugin
 - **mDNS service** - `mdnsd` or `avahi-daemon` recommended for auto-discovery
 
 ## Building
@@ -48,14 +47,21 @@ Note: this project is not affiliated with ESPHome in any way. It is its own stan
 
 ```bash
 # Install dependencies (Debian/Ubuntu)
-sudo apt-get install meson ninja-build pkg-config \
-  libdbus-1-dev libglib2.0-dev
+sudo apt-get install curl wget build-essential meson ninja-build pkg-config
+
+# Build dependencies
+scripts/build-deps.sh
 
 # Configure
 meson setup build
 
 # Build
 meson compile -C build
+
+# Install dependencies (optional)
+cp -r nimble/out/* /usr
+cp -r bluez/out/* /usr
+cp -r libble/out/* /
 
 # Install (optional)
 sudo meson install -C build
@@ -76,14 +82,12 @@ make cross
 ```
 
 The script automatically:
-- Builds dependencies (dbus, glib, etc.) on first run (~20-30 min)
+- Builds dependencies (nimble, bluez, libble) on first run
 - **Caches them in Docker layers**
-- Subsequent builds only rebuild your app code (~1-2 min)
+- Subsequent builds only rebuild your app code
 - Uses multi-stage Dockerfile for optimal caching
 
 **Fast rebuilds:** Change your code and rerun - only the app layer rebuilds!
-
-**For production:** Integrate as a buildroot package (see [BUILDROOT_INTEGRATION.md](BUILDROOT_INTEGRATION.md))
 
 ### Plugin System
 
@@ -148,20 +152,7 @@ meson compile -C build
 
 ### Prerequisites
 
-1. **BlueZ daemon must be running:**
-   ```bash
-   sudo systemctl start bluetooth
-   # or
-   sudo bluetoothd
-   ```
-
-2. **D-Bus system bus must be accessible:**
-   ```bash
-   # Check D-Bus is running
-   dbus-daemon --system
-   ```
-
-3. **mDNS for automatic discovery (recommended):**
+1**mDNS for automatic discovery (recommended):**
    ```bash
    # mdnsd (lightweight, recommended for embedded systems)
    # Configuration file:
